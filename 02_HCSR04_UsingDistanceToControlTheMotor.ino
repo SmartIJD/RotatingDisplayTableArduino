@@ -14,10 +14,15 @@
 // Steps per revolution for the motor
 const float stepsPerRevolution = 200;
 // Microstepping multiplier (1, 2, 4, 8, 16, or 32)
-int microstepSetting = 2;  //default = 2 但轉半圈會卡住;
+int microstepSetting = 16;  //default = 2 但轉半圈會卡住;
+  // Set the desired RPM and the max RPM
+  float desiredRPM = 2;  // Set the desired speed in rpm (revolutions per minute)
+  float MaxRPM = 30;      // Set max speed in rpm (revolutions per minute)
+//## Workable parameters: 16 / 2 / 30; for battery pack with 10 AA batteries
 
 // AccelStepper instance in driver mode
 AccelStepper stepper(AccelStepper::DRIVER, STEP_PIN, DIR_PIN);
+float speedStepsPerSec = 0;
 
 // Input Pins and Variables
 int pinButton = 6;
@@ -40,7 +45,7 @@ long unsigned previousMillis = 0;
 long unsigned intervalTime = 2000;
 
 //For the LED indicators
-int pinLedR = 11;
+int pinLedR = 3; // Pin 11 was not available, I don't know why? 
 int pinLedG = 13;
 int pinLedB = 12;
 int pinLedOld = 0;
@@ -65,14 +70,10 @@ void setup() {
 
   // Set microstepping mode (adjust as needed: HIGH or LOW)
   digitalWrite(MS1_PIN, HIGH);  // Set to LOW or HIGH for desired microstep setting
-  digitalWrite(MS2_PIN, LOW);   // Set to LOW or HIGH for desired microstep setting
-
-  // Set the desired RPM and the max RPM
-  float desiredRPM = 120;  // Set the desired speed in rpm (revolutions per minute)
-  float MaxRPM = 500;      // Set max speed in rpm (revolutions per minute)
+  digitalWrite(MS2_PIN, HIGH);   // Set to LOW or HIGH for desired microstep setting
 
   // Calculate and set the desired and max speed in steps per second
-  float speedStepsPerSec = (microstepSetting * stepsPerRevolution * desiredRPM) / 60.0;
+  speedStepsPerSec = (microstepSetting * stepsPerRevolution * desiredRPM) / 60.0;
   float Max_Speed_StepsPerSec = microstepSetting * stepsPerRevolution * MaxRPM / 60;  // Specify max speed in steps/sec (converted from RPM)
   stepper.setMaxSpeed(Max_Speed_StepsPerSec);
   stepper.setSpeed(speedStepsPerSec);
@@ -88,40 +89,41 @@ void loop() {
     distanceCM = detectingSomething();
     //Serial.println(distanceCM);
     brightnessMax = 150;
+    bool newRunMotor = toRunMotor;
     if (distanceCM > emptyCM) {  //>40
       modeIndicatorLed(pinLedB);
-      stepper.stop();
-      toRunMotor = false;
+      newRunMotor = false;
     } else if (distanceCM > approachingCM) {  // 40 > X > 20
-      brightnessMax = 100;
+      brightnessMax = 80;
       modeIndicatorLed(pinLedG);
-      stepper.stop();
-      toRunMotor = false;
+      newRunMotor = false;
     } else {  //distanceCM < approachingCM
       modeIndicatorLed(pinLedR);
-      stepper.runSpeed();
-      toRunMotor = true;
+      newRunMotor = true;
     }
-    Serial.print("toRunMotor = ");
-    Serial.println(toRunMotor);
+
+    if (newRunMotor != toRunMotor) {
+      toRunMotor = newRunMotor;
+      Serial.println(toRunMotor ? "Run" : "Stop");
+      if (toRunMotor) stepper.setSpeed(speedStepsPerSec);
+    }
 
     previousMillis = currentMillis;
   }
 
-  //Run the stepper motor
   if (toRunMotor) {
     stepper.runSpeed();
   }
 }
 
 void modeIndicatorLed(int ledPin) {
-  if (ledPin != pinLedOld) {
-    //switch off all RGB LEDs
+  if (ledPin == pinLedOld) {
+
+  } else {
     analogWrite(pinLedR, 0);
     analogWrite(pinLedG, 0);
     analogWrite(pinLedB, 0);
   }
-  //switch on the specific LED
   analogWrite(ledPin, 100);
   pinLedOld = ledPin;
 }
