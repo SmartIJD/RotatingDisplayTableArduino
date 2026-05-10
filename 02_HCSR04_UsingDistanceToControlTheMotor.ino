@@ -90,35 +90,38 @@ void loop() {
     brightnessMax = 150;
     if (distanceCM > emptyCM) {  //>40
       modeIndicatorLed(pinLedB);
-      //toRunMotor = false;
+      stepper.stop();
+      toRunMotor = false;
     } else if (distanceCM > approachingCM) {  // 40 > X > 20
       brightnessMax = 100;
       modeIndicatorLed(pinLedG);
-      //toRunMotor = false;
+      stepper.stop();
+      toRunMotor = false;
     } else {  //distanceCM < approachingCM
       modeIndicatorLed(pinLedR);
-      //toRunMotor = true;
+      stepper.runSpeed();
+      toRunMotor = true;
     }
+    Serial.print("toRunMotor = ");
+    Serial.println(toRunMotor);
 
     previousMillis = currentMillis;
   }
 
+  //Run the stepper motor
   if (toRunMotor) {
     stepper.runSpeed();
-  } else {
-    Serial.println("Stop");
-    stepper.stop();
   }
 }
 
 void modeIndicatorLed(int ledPin) {
-  if (ledPin == pinLedOld) {
-
-  } else {
+  if (ledPin != pinLedOld) {
+    //switch off all RGB LEDs
     analogWrite(pinLedR, 0);
     analogWrite(pinLedG, 0);
     analogWrite(pinLedB, 0);
   }
+  //switch on the specific LED
   analogWrite(ledPin, 100);
   pinLedOld = ledPin;
 }
